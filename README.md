@@ -1,24 +1,20 @@
-# アプリの概要：MoneyLog（マネーログ）
-洗練されたダークトーンのカードや滑らかなアニメーション（Motion）を取り入れ、毎日使いたくなるような上質なUI（Sleek Interface）を目指したパーソナルファイナンスアプリです。
-# 主な機能と特徴
-1.直感的な「増減」ダッシュボード
-現在の総残高を大きく表示し、「本日の増減」がプラスマイナスいくらなのかを一目で確認できます。
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-2.手入力による記録アクション（スマート入力機能）
-画面右下の巨大な「＋」ボタン（モバイル）やヘッダーの「記録する」ボタンから、いつでもどこでも支出・収入・振替の記録が可能です。
-電卓のような大きな入力エリア、口座の選択、カテゴリ、メモ機能などを備えた操作性の高いモーダルUIを採用しています。
+# Run and deploy your AI Studio app
 
-3.保管場所の管理（複数口座・財布対応）
-「メイン口座」「貯蓄用口座」「お財布（現金）」などを分けて登録でき、ドーナツグラフで内訳（アセットアロケーション）を可視化します。
-口座や財布間での「振替記録（例：銀行からお財布に3万円引き出し）」も簡単に管理できます。
+This contains everything you need to run your app locally.
 
-4.目的別貯金箱（Goals）
-「ハワイ旅行」「車検費用」などの目的ごとの目標金額と現在地（%）をプログレスバーで可視化し、モチベーションを維持します。
+View your app in AI Studio: https://ai.studio/apps/111db69b-1b6a-43cb-b5e1-1a4017097584
 
-5.推移・履歴のトラッキング
-過去からの資産推移をRechartsによる美しい折れ線グラフで確認できます。
-最近の記録（取引履歴）は、アイコン付きのリストで分かりやすく時系列表示されます。
+## Run Locally
 
-# UI/UXのこだわり
-レスポンシブデザイン: スマホ（ボトムナビゲーション＆FAB）とPC（サイドタブ＆ヘッダー）のどちらでも最適に操作できるよう設計しています。
-マイクロインタラクション: Framer Motionを利用し、画面の初期表示時のフェードや、入力モーダルを下から引き出すようなリッチな動き（ボトムシート）を実装しました。
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

@@ -19,7 +19,13 @@ import {
   Calendar,
   Tag,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  CalendarDays,
+  Target,
+  ArrowUpRight,
+  Edit2,
+  Check
 } from 'lucide-react';
 import {
   LineChart,
@@ -98,6 +104,26 @@ export default function App() {
     destAccount: 'メイン口座'
   });
 
+  // Accounts Edit States
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [editAccountBalance, setEditAccountBalance] = useState<string>('');
+
+  const handleEditAccountStart = (name: string, value: number) => {
+    setEditingAccount(name);
+    setEditAccountBalance(value.toString());
+  };
+
+  const handleEditAccountSave = () => {
+    if (!editingAccount) return;
+    const newBalance = parseInt(editAccountBalance, 10);
+    if (!isNaN(newBalance)) {
+      setAccountsData(prev => prev.map(acc => 
+        acc.name === editingAccount ? { ...acc, value: newBalance } : acc
+      ));
+    }
+    setEditingAccount(null);
+  };
+
   // Calculations
   const totalBalance = accountsData.reduce((sum, acc) => sum + acc.value, 0);
 
@@ -154,6 +180,26 @@ export default function App() {
 
     setFormData({ ...formData, amount: '', description: '' });
     setIsRecordModalOpen(false);
+  };
+
+  const handleDeleteTransaction = (id: number) => {
+    if (!window.confirm('この記録を削除しますか？')) return;
+    const txToDelete = transactions.find(t => t.id === id);
+    if (!txToDelete) return;
+
+    if (txToDelete.type === 'expense') {
+      setAccountsData(prev => prev.map(acc => acc.name === txToDelete.source ? { ...acc, value: acc.value + Math.abs(txToDelete.amount) } : acc));
+    } else if (txToDelete.type === 'income') {
+      setAccountsData(prev => prev.map(acc => acc.name === txToDelete.source ? { ...acc, value: acc.value - Math.abs(txToDelete.amount) } : acc));
+    } else if (txToDelete.type === 'transfer') {
+      const [from, to] = txToDelete.source.split(' → ');
+      setAccountsData(prev => prev.map(acc => {
+        if (acc.name === from) return { ...acc, value: acc.value + Math.abs(txToDelete.amount) };
+        if (acc.name === to) return { ...acc, value: acc.value - Math.abs(txToDelete.amount) };
+        return acc;
+      }));
+    }
+    setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
   const navItems = [
@@ -230,6 +276,7 @@ export default function App() {
 
       {/* --- Main Workspace --- */}
       <main className="flex-1 p-4 lg:p-8 overflow-y-auto lg:overflow-hidden relative z-0 pb-28 lg:pb-8">
+        {activeTab === 'dashboard' && (
         <div className="max-w-[1280px] mx-auto h-full flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
           
           {/* Left Panel: Summary */}
@@ -460,7 +507,7 @@ export default function App() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-1">
                       <p className={`text-base font-black tracking-tight font-mono ${
                           tx.type === 'income' ? 'text-emerald-500' : 
                           tx.type === 'expense' ? 'text-zinc-900' :
@@ -470,9 +517,17 @@ export default function App() {
                            tx.type === 'expense' ? '-' : ''}
                           {formatCurrency(Math.abs(tx.amount))}
                       </p>
-                      <span className="inline-block mt-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 transition-colors">
-                        {tx.category}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 transition-colors">
+                          {tx.category}
+                        </span>
+                        <button 
+                           onClick={(e) => { e.stopPropagation(); handleDeleteTransaction(tx.id); }}
+                           className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all pointer-events-none group-hover:pointer-events-auto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -481,6 +536,200 @@ export default function App() {
 
           </section>
         </div>
+        )}
+
+        {activeTab === 'accounts' && (
+          <motion.div initial="hidden" animate="visible" variants={fadeUpVariant} className="max-w-[800px] mx-auto h-full pb-8">
+            <div className="bg-white rounded-[2rem] p-6 lg:p-8 shadow-sm border border-zinc-200/60 h-full overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-zinc-800">口座・財布管理</h2>
+                  <p className="text-zinc-500 text-sm mt-1">すべての資産を一元管理</p>
+                </div>
+                <button className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  口座を追加
+                </button>
+              </div>
+              
+              <div className="grid gap-4 overflow-y-auto pr-2 pb-20 lg:pb-0">
+                {accountsData.map((acc, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-5 bg-zinc-50 rounded-2xl border border-zinc-100 hover:border-zinc-300 transition-colors cursor-pointer group flex-col sm:flex-row gap-4 sm:gap-0">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{ backgroundColor: acc.color }}>
+                        <acc.icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-extrabold text-zinc-800 text-lg">{acc.name}</h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-500 uppercase">{acc.type}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t border-zinc-200 sm:border-0 pl-16 sm:pl-0 border-dashed flex sm:block items-center justify-between">
+                      <p className="text-sm font-bold text-zinc-400 mb-1 sm:hidden">残高</p>
+                      {editingAccount === acc.name ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-zinc-500 font-bold">¥</span>
+                          <input 
+                            type="number"
+                            value={editAccountBalance}
+                            onChange={(e) => setEditAccountBalance(e.target.value)}
+                            onBlur={() => handleEditAccountSave()}
+                            onKeyDown={(e) => { if(e.key === 'Enter') handleEditAccountSave() }}
+                            autoFocus
+                            className="w-28 bg-white border border-zinc-300 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-violet-500 text-right font-mono font-bold tracking-tight text-lg"
+                          />
+                          <button onClick={(e) => { e.stopPropagation(); handleEditAccountSave(); }} className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors">
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center sm:justify-end gap-3 group/edit">
+                          <p className="text-2xl font-black text-zinc-900 font-mono tracking-tight">{formatCurrency(acc.value)}</p>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleEditAccountStart(acc.name, acc.value); }}
+                            className="p-1.5 text-zinc-400 opacity-1 sm:opacity-0 sm:group-hover/edit:opacity-100 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'transactions' && (
+          <motion.div initial="hidden" animate="visible" variants={fadeUpVariant} className="max-w-[800px] mx-auto h-full pb-8">
+            <div className="bg-white rounded-[2rem] p-4 sm:p-6 lg:p-8 shadow-sm border border-zinc-200/60 h-full flex flex-col">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-zinc-800">すべての履歴</h2>
+                  <p className="text-zinc-500 text-sm mt-1">これまでの取引記録</p>
+                </div>
+                <div className="flex items-center gap-2">
+                   <div className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 flex items-center gap-2 text-sm shadow-sm flex-1 sm:flex-auto">
+                     <CalendarDays className="w-4 h-4 text-zinc-400" />
+                     <select className="bg-transparent border-none outline-none font-bold text-zinc-700 w-full cursor-pointer">
+                        <option>今月 (2026年5月)</option>
+                        <option>先月 (2026年4月)</option>
+                        <option>すべて</option>
+                     </select>
+                   </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-1 pb-20 lg:pb-0 flex flex-col gap-3">
+                {transactions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-zinc-400">
+                     <FileText className="w-12 h-12 mb-3 text-zinc-200" />
+                     <p className="font-bold">履歴がありません</p>
+                  </div>
+                ) : (
+                  transactions.map((tx) => (
+                    <div 
+                      key={tx.id} 
+                      className="flex sm:items-center flex-col sm:flex-row justify-between p-4 sm:p-5 bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-sm rounded-2xl transition-all group gap-4 sm:gap-0"
+                    >
+                      <div className="flex items-start sm:items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
+                            tx.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 
+                            tx.type === 'expense' ? 'bg-rose-50 text-rose-500' :
+                            'bg-indigo-50 text-indigo-500'
+                        }`}>
+                            {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : 
+                            tx.type === 'expense' ? <TrendingDown className="w-5 h-5" /> :
+                            <ArrowRightLeft className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-base font-extrabold text-zinc-900">{tx.description}</p>
+                          <p className="text-xs font-semibold text-zinc-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                            {tx.date} <span className="w-1 h-1 rounded-full bg-zinc-300 hidden sm:block"></span> 
+                            <span className="bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold">{tx.category}</span>
+                            <span className="w-1 h-1 rounded-full bg-zinc-300 hidden sm:block"></span> 
+                            <span className="text-zinc-500 truncate max-w-[150px] sm:max-w-none">{tx.source}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex sm:flex-col items-center justify-between sm:items-end gap-1 sm:gap-2 ml-16 sm:ml-0 border-t sm:border-0 border-zinc-100 pt-3 sm:pt-0 border-dashed">
+                        <p className={`text-lg font-black tracking-tight font-mono ${
+                            tx.type === 'income' ? 'text-emerald-500' : 
+                            tx.type === 'expense' ? 'text-zinc-900' :
+                            'text-zinc-600'
+                        }`}>
+                            {tx.type === 'income' ? '+' : 
+                            tx.type === 'expense' ? '-' : ''}
+                            {formatCurrency(Math.abs(tx.amount))}
+                        </p>
+                        <button 
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            className="p-2 sm:p-1.5 rounded-lg text-zinc-400 bg-zinc-50 sm:bg-transparent hover:text-rose-500 hover:bg-rose-50 transition-colors font-bold text-xs flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                          <span className="sm:hidden">削除</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'settings' && (
+          <motion.div initial="hidden" animate="visible" variants={fadeUpVariant} className="max-w-[800px] mx-auto h-full pb-8">
+            <div className="bg-white rounded-[2rem] p-6 lg:p-8 shadow-sm border border-zinc-200/60 h-full">
+              <h2 className="text-2xl font-extrabold text-zinc-800 mb-8">設定</h2>
+              
+              <div className="space-y-6">
+                <div>
+                   <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">一般</h3>
+                   <div className="bg-zinc-50 rounded-2xl border border-zinc-100 overflow-hidden divide-y divide-zinc-100">
+                     <button className="w-full flex items-center justify-between p-4 hover:bg-zinc-100 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white rounded-lg shadow-sm"><UserCircle className="w-5 h-5 text-zinc-500" /></div>
+                         <span className="font-bold text-zinc-700 text-sm">プロフィール</span>
+                       </div>
+                       <ChevronRight className="w-4 h-4 text-zinc-400" />
+                     </button>
+                     <button className="w-full flex items-center justify-between p-4 hover:bg-zinc-100 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white rounded-lg shadow-sm"><Settings className="w-5 h-5 text-zinc-500" /></div>
+                         <span className="font-bold text-zinc-700 text-sm">アプリ設定</span>
+                       </div>
+                       <ChevronRight className="w-4 h-4 text-zinc-400" />
+                     </button>
+                   </div>
+                </div>
+
+                <div>
+                   <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">データ管理</h3>
+                   <div className="bg-zinc-50 rounded-2xl border border-zinc-100 overflow-hidden divide-y divide-zinc-100">
+                     <button className="w-full flex items-center justify-between p-4 hover:bg-zinc-100 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white rounded-lg shadow-sm"><ArrowUpRight className="w-5 h-5 text-zinc-500" /></div>
+                         <span className="font-bold text-zinc-700 text-sm">CSVエクスポート</span>
+                       </div>
+                       <ChevronRight className="w-4 h-4 text-zinc-400" />
+                     </button>
+                     <button className="w-full flex items-center justify-between p-4 hover:bg-zinc-100 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white rounded-lg shadow-sm"><Target className="w-5 h-5 text-zinc-500" /></div>
+                         <span className="font-bold text-zinc-700 text-sm">目標の管理</span>
+                       </div>
+                       <ChevronRight className="w-4 h-4 text-zinc-400" />
+                     </button>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </main>
 
       {/* --- Mobile Bottom Nav & FAB --- */}
@@ -611,8 +860,8 @@ export default function App() {
                   {/* Calculator/Amount Input */}
                   <div className="py-6 px-4 bg-zinc-50 rounded-[2rem] border border-zinc-100 flex flex-col items-center">
                     <label className="text-zinc-400 text-xs font-bold tracking-widest uppercase mb-1">Amount</label>
-                    <div className="flex items-center text-zinc-900 group">
-                      <span className="text-3xl font-bold text-zinc-300 mr-1 mt-1 transition-colors group-focus-within:text-indigo-400">¥</span>
+                    <div className="flex items-center text-zinc-900 group mb-4">
+                      <span className="text-3xl font-bold text-zinc-300 mr-1 mt-1 transition-colors group-focus-within:text-violet-500">¥</span>
                       <input 
                         type="number" 
                         inputMode="numeric"
@@ -624,101 +873,118 @@ export default function App() {
                         autoFocus
                       />
                     </div>
+                    
+                    {/* Quick Amount Buttons */}
+                    <div className="flex gap-2 w-full max-w-[260px]">
+                      <button type="button" onClick={() => setFormData(prev => ({...prev, amount: String((parseInt(prev.amount || '0', 10) + 1000))}))} className="flex-1 bg-white border border-zinc-200 shadow-sm rounded-xl py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all">+1千</button>
+                      <button type="button" onClick={() => setFormData(prev => ({...prev, amount: String((parseInt(prev.amount || '0', 10) + 5000))}))} className="flex-1 bg-white border border-zinc-200 shadow-sm rounded-xl py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all">+5千</button>
+                      <button type="button" onClick={() => setFormData(prev => ({...prev, amount: String((parseInt(prev.amount || '0', 10) + 10000))}))} className="flex-1 bg-white border border-zinc-200 shadow-sm rounded-xl py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all">+1万</button>
+                    </div>
                   </div>
 
                   {/* Options List */}
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-4">
                     
-                    {/* Date */}
-                    <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-zinc-400 focus-within:ring-4 focus-within:ring-zinc-100 transition-all">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400">
-                        <Calendar className="w-5 h-5" />
-                      </div>
-                      <input 
-                        type="date" 
-                        value={formData.date}
-                        onChange={(e) => setFormData({...formData, date: e.target.value})}
-                        className="flex-1 bg-transparent border-none outline-none font-bold text-zinc-800 pr-4 text-base"
-                      />
-                    </div>
-
                     {/* Account Selectors */}
                     {recordType !== 'transfer' ? (
-                      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-zinc-400 focus-within:ring-4 focus-within:ring-zinc-100 transition-all">
-                        <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400">
-                          <Wallet className="w-5 h-5" />
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase ml-1">Account</label>
+                        <div className="flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-1">
+                          {accountsData.map(acc => (
+                            <button
+                              key={acc.name}
+                              type="button"
+                              onClick={() => setFormData({...formData, sourceAccount: acc.name})}
+                              className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all shrink-0 ${formData.sourceAccount === acc.name ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm' : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'}`}
+                            >
+                              <acc.icon className="w-5 h-5 shrink-0" style={{ color: formData.sourceAccount === acc.name ? '#6d28d9' : acc.color }} />
+                              <span className="font-bold text-sm whitespace-nowrap">{acc.name}</span>
+                            </button>
+                          ))}
                         </div>
-                        <select 
-                          value={formData.sourceAccount}
-                          onChange={(e) => setFormData({...formData, sourceAccount: e.target.value})}
-                          className="flex-1 bg-transparent border-none outline-none font-bold text-zinc-800 pr-4 text-base appearance-none truncate"
-                        >
-                          {accountsData.map(acc => <option key={acc.name} value={acc.name}>{acc.name} ({formatCurrency(acc.value)})</option>)}
-                        </select>
                       </div>
                     ) : (
-                      <div className="flex bg-white rounded-2xl border border-zinc-200 p-2 items-center relative gap-2">
-                        <div className="flex-1 flex flex-col">
-                           <span className="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1">From</span>
-                           <select 
-                             value={formData.sourceAccount}
-                             onChange={(e) => setFormData({...formData, sourceAccount: e.target.value})}
-                             className="w-full bg-zinc-50 h-12 rounded-xl border-none outline-none font-bold text-zinc-800 px-3 text-sm appearance-none truncate"
-                           >
-                             {accountsData.map(acc => <option key={acc.name} value={acc.name}>{acc.name}</option>)}
-                           </select>
-                        </div>
-                        
-                        <div className="w-8 flex justify-center mt-4">
-                           <ArrowRightLeft className="w-4 h-4 text-zinc-400" />
-                        </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase ml-1">Transfer</label>
+                        <div className="flex bg-white rounded-2xl border border-zinc-200 p-2 items-center relative gap-2">
+                          <div className="flex-1 flex flex-col">
+                             <span className="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1">From</span>
+                             <select 
+                               value={formData.sourceAccount}
+                               onChange={(e) => setFormData({...formData, sourceAccount: e.target.value})}
+                               className="w-full bg-zinc-50 h-10 rounded-xl border-none outline-none font-bold text-zinc-800 px-3 text-sm appearance-none truncate"
+                             >
+                               {accountsData.map(acc => <option key={acc.name} value={acc.name}>{acc.name}</option>)}
+                             </select>
+                          </div>
+                          
+                          <div className="w-8 flex justify-center mt-4">
+                             <ArrowRightLeft className="w-4 h-4 text-zinc-400" />
+                          </div>
 
-                        <div className="flex-1 flex flex-col">
-                           <span className="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1">To</span>
-                           <select 
-                             value={formData.destAccount}
-                             onChange={(e) => setFormData({...formData, destAccount: e.target.value})}
-                             className="w-full bg-zinc-50 h-12 rounded-xl border-none outline-none font-bold text-zinc-800 px-3 text-sm appearance-none truncate"
-                           >
-                             {accountsData.map(acc => <option key={acc.name} value={acc.name}>{acc.name}</option>)}
-                           </select>
+                          <div className="flex-1 flex flex-col">
+                             <span className="text-[10px] font-bold text-zinc-400 uppercase ml-2 mb-1">To</span>
+                             <select 
+                               value={formData.destAccount}
+                               onChange={(e) => setFormData({...formData, destAccount: e.target.value})}
+                               className="w-full bg-zinc-50 h-10 rounded-xl border-none outline-none font-bold text-zinc-800 px-3 text-sm appearance-none truncate"
+                             >
+                               {accountsData.map(acc => <option key={acc.name} value={acc.name}>{acc.name}</option>)}
+                             </select>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Category & Memo Grid */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <div className="flex-1 flex items-center gap-4 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-zinc-400 focus-within:ring-4 focus-within:ring-zinc-100 transition-all">
-                        <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 shrink-0">
-                          <Tag className="w-5 h-5" />
+                    {/* Categories */}
+                    {recordType !== 'transfer' && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase ml-1">Category</label>
+                        <div className="flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] px-1">
+                          {(recordType === 'expense' 
+                            ? ['食費', '日用品', '交通費', '趣味・娯楽', '交際費', '固定費', 'その他'] 
+                            : ['給与', '副業', 'お小遣い', '臨時収入', 'その他']).map(cat => (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => setFormData({...formData, category: cat})}
+                              className={`px-4 py-2.5 rounded-xl border transition-all shrink-0 text-sm font-bold ${formData.category === cat ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm' : 'border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50'}`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
                         </div>
-                        <select 
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className="w-full bg-transparent border-none outline-none font-bold text-zinc-800 pr-4 text-base appearance-none"
-                        >
-                          {recordType === 'expense' && (
-                            <><option>食費</option><option>日用品</option><option>交通費</option><option>趣味・娯楽</option><option>交際費</option><option>固定費</option></>
-                          )}
-                          {recordType === 'income' && (<><option>給与</option><option>副業</option><option>お小遣い</option><option>臨時収入</option></>)}
-                          {recordType === 'transfer' && <option>振替</option>}
-                          <option>その他</option>
-                        </select>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Memo input */}
-                    <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-zinc-400 focus-within:ring-4 focus-within:ring-zinc-100 transition-all">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 shrink-0">
-                        <FileText className="w-5 h-5" />
+                    {/* Date & Memo Grid */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {/* Date */}
+                      <div className="sm:w-1/3 flex items-center gap-3 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-violet-500 focus-within:ring-4 focus-within:ring-violet-50 transition-all shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500 shrink-0">
+                          <Calendar className="w-5 h-5" />
+                        </div>
+                        <input 
+                          type="date" 
+                          value={formData.date}
+                          onChange={(e) => setFormData({...formData, date: e.target.value})}
+                          className="flex-1 bg-transparent border-none outline-none font-bold text-zinc-800 pr-2 text-sm w-full"
+                        />
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder="メモ（コンビニ、カフェなど）"
-                        value={formData.description}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        className="w-full bg-transparent border-none outline-none font-bold text-zinc-800 placeholder-zinc-300 pr-4 text-base"
-                      />
+                      
+                      {/* Memo input */}
+                      <div className="flex-1 flex items-center gap-3 bg-white p-2 rounded-2xl border border-zinc-200 focus-within:border-violet-500 focus-within:ring-4 focus-within:ring-violet-50 transition-all shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500 shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <input 
+                          type="text" 
+                          placeholder="メモ（コンビニ等）"
+                          value={formData.description}
+                          onChange={(e) => setFormData({...formData, description: e.target.value})}
+                          className="w-full bg-transparent border-none outline-none font-bold text-zinc-800 placeholder-zinc-300 pr-2 text-sm"
+                        />
+                      </div>
                     </div>
 
                   </div>
